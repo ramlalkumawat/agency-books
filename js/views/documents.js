@@ -68,6 +68,12 @@ const DocumentsView = {
               <a href="javascript:void(0)" class="dropdown-item" data-type="Credit Note" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: var(--radius-sm); color: var(--text-main);">
                 <i class="fa-solid fa-receipt text-danger"></i> Credit Note
               </a>
+              <a href="javascript:void(0)" class="dropdown-item" data-type="Debit Note" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: var(--radius-sm); color: var(--text-main);">
+                <i class="fa-solid fa-file-invoice text-orange"></i> Debit Note
+              </a>
+              <a href="javascript:void(0)" class="dropdown-item" data-type="Statement of Account" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: var(--radius-sm); color: var(--text-main);">
+                <i class="fa-solid fa-table-list text-primary"></i> Statement of Account
+              </a>
             </div>
           </div>
         </div>
@@ -89,6 +95,8 @@ const DocumentsView = {
           <option value="Work Order" ${this.typeFilter === 'Work Order' ? 'selected' : ''}>Work Order</option>
           <option value="Purchase Order" ${this.typeFilter === 'Purchase Order' ? 'selected' : ''}>Purchase Order</option>
           <option value="Credit Note" ${this.typeFilter === 'Credit Note' ? 'selected' : ''}>Credit Note</option>
+          <option value="Debit Note" ${this.typeFilter === 'Debit Note' ? 'selected' : ''}>Debit Note</option>
+          <option value="Statement of Account" ${this.typeFilter === 'Statement of Account' ? 'selected' : ''}>Statement of Account</option>
         </select>
 
         <select class="select-filter" id="doc-status-filter">

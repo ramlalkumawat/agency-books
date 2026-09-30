@@ -12,6 +12,32 @@ const DashboardView = {
     const company = window.appState.currentCompany;
     const isAll = window.appState.isAllCompaniesMode;
 
+    // First Launch / No Companies State
+    if (!company && !isAll) {
+      container.innerHTML = `
+        <div class="view-header">
+          <div class="view-title-group">
+            <h2>Welcome to AgencyBooks</h2>
+            <p>Multi-company quotation, invoice, proposal, and payment management suite.</p>
+          </div>
+        </div>
+
+        <div class="empty-state" style="padding: 60px 24px; max-width: 640px; margin: 30px auto; border-radius: var(--radius-xl);">
+          <div class="empty-state-icon" style="width: 68px; height: 68px; font-size: 30px; background: var(--primary-light); color: var(--primary);">
+            <i class="fa-solid fa-building-circle-check"></i>
+          </div>
+          <h3 class="empty-state-title" style="font-size: 20px;">No companies found</h3>
+          <p class="empty-state-desc">
+            You don't have any agency or company profiles registered yet. Add your first company to start managing clients, creating proposals, and issuing tax invoices.
+          </p>
+          <button class="btn btn-primary" onclick="CompaniesView.openCompanyModal()">
+            <i class="fa-solid fa-plus"></i> Add Your First Company
+          </button>
+        </div>
+      `;
+      return;
+    }
+
     // Fetch documents, payments, clients for selected company
     const docs = await window.db.getDocumentsByCompany(companyId);
     const payments = await window.db.getPaymentsByCompany(companyId);
@@ -242,6 +268,16 @@ const DashboardView = {
   },
 
   renderMonthlyRevenueChart(invoices, payments, currency) {
+    if (invoices.length === 0 && payments.length === 0) {
+      return `
+        <div class="empty-state" style="padding: 32px 16px; border: none;">
+          <div class="empty-state-icon" style="width: 44px; height: 44px; font-size: 18px;"><i class="fa-solid fa-chart-line"></i></div>
+          <div style="font-size: 14px; font-weight: 600; color: var(--text-main); margin-bottom: 4px;">No revenue recorded yet</div>
+          <p style="font-size: 12px; color: var(--text-muted); margin: 0;">Monthly invoiced and collected trends will automatically visualize here once you issue invoices.</p>
+        </div>
+      `;
+    }
+
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const currentYear = new Date().getFullYear();
     const monthlyData = months.map((m, i) => ({ month: m, invoiced: 0, collected: 0 }));
@@ -377,12 +413,12 @@ const DashboardView = {
   renderRecentDocumentsTable(docs, currency) {
     if (docs.length === 0) {
       return `
-        <div class="empty-state" style="border: none;">
-          <div class="empty-state-icon"><i class="fa-solid fa-folder-open"></i></div>
-          <div class="empty-state-title">No documents created yet</div>
-          <div class="empty-state-desc">Create your first proposal, quotation, or invoice to get started.</div>
-          <button class="btn btn-primary" onclick="window.app.openDocumentEditorModal('Invoice')">
-            <i class="fa-solid fa-plus"></i> Create First Invoice
+        <div class="empty-state" style="border: none; padding: 36px 20px;">
+          <div class="empty-state-icon" style="width: 44px; height: 44px; font-size: 18px;"><i class="fa-solid fa-folder-open"></i></div>
+          <div class="empty-state-title">No documents found</div>
+          <div class="empty-state-desc">Create your first proposal, quotation, or invoice for this company.</div>
+          <button class="btn btn-primary btn-sm" onclick="window.app.openDocumentEditorModal('Invoice')">
+            <i class="fa-solid fa-plus"></i> Create Your First Invoice
           </button>
         </div>
       `;

@@ -198,6 +198,11 @@ const ClientsView = {
 
   // Client Create/Edit Modal
   openClientModal(client = null, onSavedCallback = null) {
+    if (!window.appState.currentCompanyId) {
+      Utils.showToast('Please add a company first before creating clients.', 'warning');
+      window.app.navigateTo('companies');
+      return;
+    }
     const isEdit = !!client;
     const c = client || {
       companyId: window.appState.currentCompanyId,
@@ -417,10 +422,11 @@ const ClientsView = {
           </div>
 
           <!-- Quick Action Buttons for this client -->
-          <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+          <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
             <button class="btn btn-primary btn-sm" id="btn-client-new-inv"><i class="fa-solid fa-plus"></i> New Invoice</button>
             <button class="btn btn-secondary btn-sm" id="btn-client-new-quote"><i class="fa-solid fa-file-signature"></i> New Quotation</button>
             <button class="btn btn-secondary btn-sm" id="btn-client-new-prop"><i class="fa-solid fa-lightbulb"></i> New Proposal</button>
+            <button class="btn btn-outline btn-sm" id="btn-client-soa"><i class="fa-solid fa-table-list"></i> Statement of Account</button>
           </div>
 
           <!-- Document History Table -->
@@ -496,6 +502,60 @@ const ClientsView = {
       closeModal();
       window.app.openDocumentEditorModal('Proposal', null, { clientId: client.id });
     };
+
+    const btnSoa = modal.querySelector('#btn-client-soa');
+    if (btnSoa) {
+      btnSoa.onclick = async () => {
+        if (invoices.length === 0) {
+          Utils.showToast('No invoices found for this client to generate a Statement of Account.', 'info');
+          return;
+        }
+        closeModal();
+
+        const nextNumber = await window.db.getNextDocumentNumber(companyId, 'Statement of Account');
+        const items = invoices.map(inv => ({
+          name: `${inv.number} - ${inv.projectName || 'Services'}`,
+          description: `Date: ${Utils.formatDate(inv.date)} | Invoice Total: ${Utils.formatCurrency(inv.total, currency)} | Paid: ${Utils.formatCurrency(inv.paidAmount, currency)} | Balance Due: ${Utils.formatCurrency(inv.balanceDue, currency)} (Status: ${inv.status})`,
+          quantity: 1,
+          unit: 'inv',
+          unitPrice: Math.round((parseFloat(inv.total) || 0) * 100) / 100,
+          discount: 0,
+          taxRate: 0,
+          amount: Math.round((parseFloat(inv.total) || 0) * 100) / 100
+        }));
+
+        const roundedTotal = Math.round(totalInvoiced * 100) / 100;
+        const roundedPaid = Math.round(totalPaid * 100) / 100;
+        const roundedBalance = Math.round(balanceDue * 100) / 100;
+
+        const soaDoc = {
+          id: 'soa_' + Utils.generateUUID(),
+          companyId: companyId,
+          clientId: client.id,
+          clientName: client.name,
+          clientOrg: client.organization,
+          type: 'Statement of Account',
+          number: nextNumber,
+          date: new Date().toISOString().split('T')[0],
+          projectName: 'Statement of Account - ' + (client.organization || client.name),
+          subject: `Statement of all invoices, payments, and outstanding balances as of ${Utils.formatDate(new Date().toISOString().split('T')[0])}`,
+          items: items,
+          subtotal: roundedTotal,
+          discount: 0,
+          taxableAmount: roundedTotal,
+          tax: 0,
+          total: roundedTotal,
+          paidAmount: roundedPaid,
+          balanceDue: roundedBalance,
+          status: roundedBalance > 0 ? (roundedPaid > 0 ? 'Partially Paid' : 'Sent') : 'Paid',
+          currency: currency,
+          notes: `Statement of Account generated as of ${Utils.formatDate(new Date().toISOString().split('T')[0])}. Total Billed: ${Utils.formatCurrency(roundedTotal, currency)}, Total Received: ${Utils.formatCurrency(roundedPaid, currency)}, Net Outstanding Balance: ${Utils.formatCurrency(roundedBalance, currency)}.`,
+          terms: 'Please verify all listed billing records against your accounts ledger. For payment reconciliations or disputes, contact our finance desk.'
+        };
+
+        window.app.openDocumentPreviewModal(null, soaDoc, company, client);
+      };
+    }
   }
 };
 

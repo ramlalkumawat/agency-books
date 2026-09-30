@@ -32,6 +32,7 @@
   flex-direction: column;
   box-sizing: border-box;
   position: relative;
+  border: 1px solid #cbd5e1;
   border-top: 6px solid var(--doc-brand, #2563eb);
 }
 
@@ -571,6 +572,9 @@
     box-shadow: none !important;
     padding: 10mm 12mm !important;
     margin: 0 !important;
+    border: 1px solid #cbd5e1 !important;
+    border-top: 5mm solid var(--doc-brand, #2563eb) !important;
+    box-sizing: border-box !important;
   }
 
   .no-print, .modal-header, .modal-footer, .app-sidebar, .app-topbar {

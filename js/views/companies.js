@@ -105,9 +105,20 @@ const CompaniesView = {
         </div>
       </div>
 
-      <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 20px;">
-        ${companyCards}
-      </div>
+      ${companies.length === 0 ? `
+        <div class="empty-state">
+          <div class="empty-state-icon"><i class="fa-solid fa-building"></i></div>
+          <div class="empty-state-title">No companies found</div>
+          <div class="empty-state-desc">You have not registered any agency or company profiles yet. Create your first profile to begin managing clients, proposals, and invoices.</div>
+          <button class="btn btn-primary" onclick="CompaniesView.openCompanyModal()">
+            <i class="fa-solid fa-plus"></i> Add Your First Company
+          </button>
+        </div>
+      ` : `
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 20px;">
+          ${companyCards}
+        </div>
+      `}
     `;
 
     this.bindEvents(container);

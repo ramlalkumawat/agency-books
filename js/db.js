@@ -77,10 +77,18 @@ class Database {
         this.db = e.target.result;
         this.isReady = true;
 
-        // Check if DB is completely empty. If so, seed initial companies & sample records
-        const companies = await this.getAll('companies');
-        if (companies.length === 0) {
-          await this.seedInitialData();
+        // Clean any old demo records if present so DB starts 100% clean
+        await this.purgeDemoDataIfPresent();
+
+        // Ensure default settings exist if settings store is empty
+        const appSettings = await this.getById('settings', 'app_settings');
+        if (!appSettings) {
+          await this.put('settings', {
+            key: 'app_settings',
+            theme: 'light',
+            dateFormat: 'DD/MM/YYYY',
+            currency: 'INR'
+          });
         }
 
         resolve(this);
@@ -332,9 +340,9 @@ class Database {
     const invoice = await this.getDocument(payment.invoiceId);
     if (invoice) {
       const allPayments = await this.getPaymentsByInvoice(invoice.id);
-      const totalPaid = allPayments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
-      const grandTotal = parseFloat(invoice.total) || 0;
-      const balanceDue = Math.max(0, grandTotal - totalPaid);
+      const totalPaid = Math.round(allPayments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0) * 100) / 100;
+      const grandTotal = Math.round((parseFloat(invoice.total) || 0) * 100) / 100;
+      const balanceDue = Math.max(0, Math.round((grandTotal - totalPaid) * 100) / 100);
 
       invoice.paidAmount = totalPaid;
       invoice.balanceDue = balanceDue;
@@ -365,9 +373,9 @@ class Database {
       const invoice = await this.getDocument(payment.invoiceId);
       if (invoice) {
         const remainingPayments = await this.getPaymentsByInvoice(invoice.id);
-        const totalPaid = remainingPayments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
-        const grandTotal = parseFloat(invoice.total) || 0;
-        const balanceDue = Math.max(0, grandTotal - totalPaid);
+        const totalPaid = Math.round(remainingPayments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0) * 100) / 100;
+        const grandTotal = Math.round((parseFloat(invoice.total) || 0) * 100) / 100;
+        const balanceDue = Math.max(0, Math.round((grandTotal - totalPaid) * 100) / 100);
 
         invoice.paidAmount = totalPaid;
         invoice.balanceDue = balanceDue;
@@ -400,7 +408,8 @@ class Database {
       'Purchase Order': 'PO',
       'Work Order': 'WO',
       'Credit Note': 'CN',
-      'Debit Note': 'DN'
+      'Debit Note': 'DN',
+      'Statement of Account': 'SOA'
     };
 
     const prefix = prefixes[docType] || docType.substring(0, 3).toUpperCase();
@@ -529,422 +538,36 @@ class Database {
     };
   }
 
-  // --- Seed Initial Starter Companies & Data ---
-
-  async seedInitialData() {
-    const sampleCompany1 = {
-      id: 'comp_apex',
-      name: 'Apex Digital Creative Labs',
-      logo: '',
-      email: 'hello@apexdigital.io',
-      phone: '+91 98765 43210',
-      website: 'https://apexdigital.io',
-      address: 'Suite 402, Pinnacle Business Park, Indiranagar, Bengaluru, Karnataka, 560038',
-      gstin: '29ABCDE1234F1Z5',
-      pan: 'ABCDE1234F',
-      bankDetails: {
-        bankName: 'HDFC Bank Ltd',
-        accountNumber: '50200034981290',
-        ifscCode: 'HDFC0000240',
-        branch: 'Indiranagar, Bangalore',
-        accountType: 'Current'
-      },
-      upiId: 'apexdigital@hdfcbank',
-      currency: 'INR',
-      brandColor: '#2563eb', // Royal Blue
-      isDefault: true,
-      documentPrefixes: {
-        Proposal: 'PROP',
-        Quotation: 'QUO',
-        Invoice: 'INV',
-        Receipt: 'REC'
-      },
-      defaultPaymentTerms: 'Payment due within 15 days of invoice date. 50% advance for milestone work.',
-      termsAndConditions: '1. All payments must be made in full as per the agreed schedule.\n2. Work begins only upon receipt of upfront payment.\n3. Revisions outside the agreed scope will be billed at an hourly rate.',
-      signature: '',
-      footerText: 'Thank you for choosing Apex Digital Creative Labs! We build high-impact digital experiences.'
-    };
-
-    const sampleCompany2 = {
-      id: 'comp_vortex',
-      name: 'Vortex Cloud Solutions',
-      logo: '',
-      email: 'billing@vortexcloud.tech',
-      phone: '+91 98111 22334',
-      website: 'https://vortexcloud.tech',
-      address: 'Level 8, Cyber Tower B, HITEC City, Hyderabad, Telangana, 500081',
-      gstin: '36XYZAB5678C1Z2',
-      pan: 'XYZAB5678C',
-      bankDetails: {
-        bankName: 'ICICI Bank',
-        accountNumber: '001105023941',
-        ifscCode: 'ICIC0000011',
-        branch: 'HITEC City, Hyderabad',
-        accountType: 'Current'
-      },
-      upiId: 'vortexcloud@icici',
-      currency: 'INR',
-      brandColor: '#059669', // Emerald Green
-      isDefault: false,
-      documentPrefixes: {
-        Proposal: 'V-PROP',
-        Quotation: 'V-QUO',
-        Invoice: 'V-INV',
-        Receipt: 'V-REC'
-      },
-      defaultPaymentTerms: 'Net 30 days. Late payments incur 1.5% interest per month.',
-      termsAndConditions: '1. Cloud maintenance services are subject to SLA guarantees of 99.9% uptime.\n2. Third-party cloud hosting bills are directly payable by the client.',
-      signature: '',
-      footerText: 'Vortex Cloud Solutions - Enterprise DevOps, Cloud Architecture & Cybersecurity'
-    };
-
-    await this.put('companies', sampleCompany1);
-    await this.put('companies', sampleCompany2);
-
-    // Seed sample clients for Company 1
-    const client1 = {
-      id: 'client_nexus',
-      companyId: 'comp_apex',
-      name: 'Rahul Sharma',
-      organization: 'Nexus Retail Ventures Pvt Ltd',
-      email: 'rahul.s@nexusretail.in',
-      phone: '+91 98220 11223',
-      whatsapp: '+91 98220 11223',
-      billingAddress: '4th Floor, Phoenix Marketcity Commercial Tower, Whitefield, Bengaluru, 560048',
-      shippingAddress: '4th Floor, Phoenix Marketcity Commercial Tower, Whitefield, Bengaluru, 560048',
-      gstin: '29AABCN8890K1Z9',
-      pan: 'AABCN8890K',
-      state: 'Karnataka',
-      city: 'Bengaluru',
-      pinCode: '560048',
-      notes: 'Key retail client. Prefers monthly milestone invoicing.'
-    };
-
-    const client2 = {
-      id: 'client_solaris',
-      companyId: 'comp_apex',
-      name: 'Ananya Verma',
-      organization: 'Solaris Mobility Technologies',
-      email: 'ananya@solarismobility.com',
-      phone: '+91 97110 33445',
-      whatsapp: '+91 97110 33445',
-      billingAddress: 'Plot 18, Sector 44, Institutional Area, Gurugram, Haryana, 122003',
-      shippingAddress: 'Plot 18, Sector 44, Institutional Area, Gurugram, Haryana, 122003',
-      gstin: '06AAACS5512B1ZQ',
-      pan: 'AAACS5512B',
-      state: 'Haryana',
-      city: 'Gurugram',
-      pinCode: '122003',
-      notes: 'EV fleet management startup.'
-    };
-
-    // Client for Company 2
-    const client3 = {
-      id: 'client_orion',
-      companyId: 'comp_vortex',
-      name: 'Vikram Mehta',
-      organization: 'Orion FinTech Labs',
-      email: 'vikram@orionfin.io',
-      phone: '+91 99300 44556',
-      whatsapp: '+91 99300 44556',
-      billingAddress: '12th Floor, Express Towers, Nariman Point, Mumbai, Maharashtra, 400021',
-      shippingAddress: '12th Floor, Express Towers, Nariman Point, Mumbai, Maharashtra, 400021',
-      gstin: '27AABCO3321D1ZN',
-      pan: 'AABCO3321D',
-      state: 'Maharashtra',
-      city: 'Mumbai',
-      pinCode: '400021',
-      notes: 'Fintech client with strict SOC2 compliance requirements.'
-    };
-
-    await this.put('clients', client1);
-    await this.put('clients', client2);
-    await this.put('clients', client3);
-
-    const year = new Date().getFullYear();
-
-    // Sample Documents for Apex
-    // 1. Proposal
-    const prop1 = {
-      id: 'doc_prop_01',
-      companyId: 'comp_apex',
-      clientId: client1.id,
-      clientName: client1.name,
-      clientOrg: client1.organization,
-      type: 'Proposal',
-      number: `PROP-${year}-001`,
-      date: new Date(Date.now() - 20 * 86400000).toISOString().split('T')[0],
-      validUntil: new Date(Date.now() + 10 * 86400000).toISOString().split('T')[0],
-      projectName: 'Omnichannel E-Commerce Portal & Mobile App UI/UX Redesign',
-      projectDescription: 'End-to-end design and design system for Nexus Retail omnichannel web platform and native mobile apps.',
-      projectObjectives: '1. Enhance conversion rate by 35% with frictionless mobile checkout.\n2. Create a unified, scalable design system for web and iOS/Android.\n3. Modernize brand presence and improve page-speed metrics.',
-      scopeOfWork: 'Discovery workshops, wireframing, high-fidelity prototypes in Figma, design tokens, interactive micro-animations, and full developer handoff documentation.',
-      timeline: '8 Weeks (Phase 1: Wireframing - 2 weeks, Phase 2: High Fidelity - 4 weeks, Phase 3: QA & Handoff - 2 weeks)',
-      deliverables: 'Complete Figma design system, 45+ unique screen templates, clickable prototype, interactive component specs.',
-      items: [
-        {
-          name: 'UI/UX Research & Discovery Phase',
-          description: 'User interviews, competitive analysis, and UX architecture blueprint',
-          quantity: 1,
-          unit: 'phase',
-          unitPrice: 45000,
-          taxRate: 18,
-          discount: 0,
-          total: 45000
-        },
-        {
-          name: 'Design System & Component Library',
-          description: 'Comprehensive tokens, light/dark themes, accessible WCAG 2.1 AA UI kit',
-          quantity: 1,
-          unit: 'kit',
-          unitPrice: 65000,
-          taxRate: 18,
-          discount: 0,
-          total: 65000
-        },
-        {
-          name: 'Mobile App Screens (iOS & Android)',
-          description: '45 production-ready screens with responsive layout variants',
-          quantity: 45,
-          unit: 'screen',
-          unitPrice: 2200,
-          taxRate: 18,
-          discount: 5000,
-          total: 94000
+  // --- Clean any old demo data from development ---
+  async purgeDemoDataIfPresent() {
+    try {
+      const demoCompanyIds = ['comp_apex', 'comp_vortex'];
+      const allCompanies = await this.getAll('companies');
+      for (const id of demoCompanyIds) {
+        if (allCompanies.some(c => c.id === id)) {
+          await this.deleteCompany(id, true);
         }
-      ],
-      subtotal: 204000,
-      discount: 5000,
-      taxableAmount: 199000,
-      tax: 35820,
-      total: 234820,
-      paidAmount: 0,
-      balanceDue: 234820,
-      status: 'Accepted',
-      paymentTerms: '50% advance upon contract signing, 30% on mid-term milestone, 20% on final handover.',
-      terms: sampleCompany1.termsAndConditions,
-      notes: 'Includes 2 rounds of client revisions per milestone.',
-      currency: 'INR'
-    };
+      }
+    } catch (e) {
+      console.warn('Note on demo purge:', e);
+    }
+  }
 
-    // 2. Quotation
-    const quo1 = {
-      id: 'doc_quo_01',
-      companyId: 'comp_apex',
-      clientId: client2.id,
-      clientName: client2.name,
-      clientOrg: client2.organization,
-      type: 'Quotation',
-      number: `QUO-${year}-001`,
-      date: new Date(Date.now() - 14 * 86400000).toISOString().split('T')[0],
-      validUntil: new Date(Date.now() + 16 * 86400000).toISOString().split('T')[0],
-      projectName: 'Solaris Fleet Telematics Web Dashboard',
-      subject: 'Quotation for Real-Time IoT Fleet Monitoring Dashboard',
-      items: [
-        {
-          name: 'Frontend Development (React & TailwindCSS)',
-          description: 'High performance real-time map tracking with Mapbox GL and WebSockets',
-          quantity: 1,
-          unit: 'module',
-          unitPrice: 120000,
-          taxRate: 18,
-          discount: 0,
-          total: 120000
-        },
-        {
-          name: 'Data Visualization & Charts Module',
-          description: 'Battery health, speed metrics, geofence breach alert graphs',
-          quantity: 1,
-          unit: 'module',
-          unitPrice: 50000,
-          taxRate: 18,
-          discount: 0,
-          total: 50000
-        }
-      ],
-      subtotal: 170000,
-      discount: 0,
-      taxableAmount: 170000,
-      tax: 30600,
-      total: 200600,
-      paidAmount: 0,
-      balanceDue: 200600,
-      status: 'Sent',
-      paymentTerms: 'Payment due within 15 days of invoice date.',
-      terms: sampleCompany1.termsAndConditions,
-      notes: 'Valid for 30 calendar days from the issue date.',
-      currency: 'INR'
-    };
-
-    // 3. Invoice (Partially Paid)
-    const inv1 = {
-      id: 'doc_inv_01',
-      companyId: 'comp_apex',
-      clientId: client1.id,
-      clientName: client1.name,
-      clientOrg: client1.organization,
-      type: 'Invoice',
-      number: `INV-${year}-001`,
-      date: new Date(Date.now() - 10 * 86400000).toISOString().split('T')[0],
-      dueDate: new Date(Date.now() + 5 * 86400000).toISOString().split('T')[0],
-      projectName: 'Omnichannel E-Commerce - Milestone 1 Handover',
-      referenceNumber: `PO-NEX-${year}-44`,
-      items: [
-        {
-          name: 'Milestone 1: Discovery & UX Wireframes',
-          description: 'Approved wireframes and architecture diagrams',
-          quantity: 1,
-          unit: 'milestone',
-          unitPrice: 100000,
-          taxRate: 18,
-          discount: 0,
-          total: 100000
-        }
-      ],
-      subtotal: 100000,
-      discount: 0,
-      taxableAmount: 100000,
-      tax: 18000,
-      total: 118000,
-      paidAmount: 59000,
-      balanceDue: 59000,
-      status: 'Partially Paid',
-      paymentTerms: '50% advance received, balance payable upon Milestone 1 acceptance.',
-      bankDetails: sampleCompany1.bankDetails,
-      upiId: sampleCompany1.upiId,
-      terms: sampleCompany1.termsAndConditions,
-      notes: 'Thank you for your prompt business partnership!',
-      currency: 'INR'
-    };
-
-    // 4. Overdue Invoice
-    const inv2 = {
-      id: 'doc_inv_02',
-      companyId: 'comp_apex',
-      clientId: client2.id,
-      clientName: client2.name,
-      clientOrg: client2.organization,
-      type: 'Invoice',
-      number: `INV-${year}-002`,
-      date: new Date(Date.now() - 40 * 86400000).toISOString().split('T')[0],
-      dueDate: new Date(Date.now() - 10 * 86400000).toISOString().split('T')[0],
-      projectName: 'Solaris Brand Identity & Guidelines',
-      referenceNumber: 'REF-SOL-99',
-      items: [
-        {
-          name: 'Brand Guidelines & Typography System',
-          description: 'Vector logo package, color tokens, and corporate presentation kit',
-          quantity: 1,
-          unit: 'pkg',
-          unitPrice: 40000,
-          taxRate: 18,
-          discount: 0,
-          total: 40000
-        }
-      ],
-      subtotal: 40000,
-      discount: 0,
-      taxableAmount: 40000,
-      tax: 7200,
-      total: 47200,
-      paidAmount: 0,
-      balanceDue: 47200,
-      status: 'Overdue',
-      paymentTerms: 'Net 15 days.',
-      bankDetails: sampleCompany1.bankDetails,
-      upiId: sampleCompany1.upiId,
-      terms: sampleCompany1.termsAndConditions,
-      notes: 'Payment reminder sent on ' + new Date(Date.now() - 5 * 86400000).toLocaleDateString(),
-      currency: 'INR'
-    };
-
-    await this.put('documents', prop1);
-    await this.put('documents', quo1);
-    await this.put('documents', inv1);
-    await this.put('documents', inv2);
-
-    // Seed sample payment for Invoice 1
-    const payment1 = {
-      id: 'pay_01',
-      companyId: 'comp_apex',
-      clientId: client1.id,
-      invoiceId: inv1.id,
-      invoiceNumber: inv1.number,
-      receiptNumber: `REC-${year}-001`,
-      date: new Date(Date.now() - 8 * 86400000).toISOString().split('T')[0],
-      amount: 59000,
-      method: 'Bank Transfer',
-      reference: 'NEFT/HDFC/9928374102',
-      notes: 'Initial 50% milestone advance payment received with thanks.'
-    };
-    await this.put('payments', payment1);
-
-    // Seed an invoice for Company 2 (Vortex Cloud Solutions)
-    const invVortex = {
-      id: 'doc_inv_v1',
-      companyId: 'comp_vortex',
-      clientId: client3.id,
-      clientName: client3.name,
-      clientOrg: client3.organization,
-      type: 'Invoice',
-      number: `V-INV-${year}-001`,
-      date: new Date(Date.now() - 5 * 86400000).toISOString().split('T')[0],
-      dueDate: new Date(Date.now() + 25 * 86400000).toISOString().split('T')[0],
-      projectName: 'Kubernetes Architecture & AWS DevOps Retainer (Month 1)',
-      referenceNumber: 'PO-ORION-K8S-01',
-      items: [
-        {
-          name: 'Multi-AZ EKS Cluster Setup & Hardening',
-          description: 'Terraform IaC, Helm charts, and Falco security monitoring',
-          quantity: 1,
-          unit: 'month',
-          unitPrice: 150000,
-          taxRate: 18,
-          discount: 0,
-          total: 150000
-        }
-      ],
-      subtotal: 150000,
-      discount: 0,
-      taxableAmount: 150000,
-      tax: 27000,
-      total: 177000,
-      paidAmount: 177000,
-      balanceDue: 0,
-      status: 'Paid',
-      paymentTerms: 'Payment due on receipt.',
-      bankDetails: sampleCompany2.bankDetails,
-      upiId: sampleCompany2.upiId,
-      terms: sampleCompany2.termsAndConditions,
-      notes: 'Full payment received electronically.',
-      currency: 'INR'
-    };
-    await this.put('documents', invVortex);
-
-    const paymentVortex = {
-      id: 'pay_v01',
-      companyId: 'comp_vortex',
-      clientId: client3.id,
-      invoiceId: invVortex.id,
-      invoiceNumber: invVortex.number,
-      receiptNumber: `V-REC-${year}-001`,
-      date: new Date(Date.now() - 4 * 86400000).toISOString().split('T')[0],
-      amount: 177000,
-      method: 'UPI',
-      reference: 'UPI/329482938192/orion',
-      notes: 'Full payment cleared via instant UPI.'
-    };
-    await this.put('payments', paymentVortex);
-
-    // Default settings
+  // --- Reset Entire Database to Fresh Production State ---
+  async resetAllData() {
+    await this.clearStore('companies');
+    await this.clearStore('clients');
+    await this.clearStore('documents');
+    await this.clearStore('payments');
+    await this.clearStore('settings');
     await this.put('settings', {
       key: 'app_settings',
-      activeCompanyId: 'comp_apex',
       theme: 'light',
       dateFormat: 'DD/MM/YYYY',
       currency: 'INR',
       numberFormat: 'en-IN'
     });
+    return true;
   }
 }
 

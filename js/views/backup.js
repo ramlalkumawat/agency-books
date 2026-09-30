@@ -126,6 +126,23 @@ const BackupView = {
             </div>
           </div>
         </div>
+
+        <!-- Danger Zone: Reset / Clean Slate Database -->
+        <div class="col-12 mt-3">
+          <div class="card" style="border-color: #fecaca; background: #fffafb;">
+            <div class="card-header" style="background: transparent; border-bottom: 1px solid #fee2e2;">
+              <h3 class="card-title text-danger"><i class="fa-solid fa-triangle-exclamation"></i> Danger Zone: Database Reset</h3>
+            </div>
+            <div class="card-body">
+              <p style="font-size: 13px; color: #7f1d1d; margin-bottom: 14px; line-height: 1.5;">
+                Need a completely clean slate or want to remove all existing records and legacy demo data? Resetting the database clears all companies, clients, documents, and payments stored in this browser.
+              </p>
+              <button class="btn btn-danger btn-sm" id="btn-purge-database">
+                <i class="fa-solid fa-trash-can"></i> Purge All Records & Reset Database
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     `;
 
@@ -281,6 +298,26 @@ const BackupView = {
         } catch (err) {
           console.error(err);
           Utils.showToast('Error reading backup file: ' + err.message, 'error');
+        }
+      };
+    }
+
+    // Purge / Clean Slate
+    const btnPurge = container.querySelector('#btn-purge-database');
+    if (btnPurge) {
+      btnPurge.onclick = async () => {
+        const confirmed = await Utils.showConfirmDialog({
+          title: 'Clean Slate: Reset All Data?',
+          message: 'This will permanently erase all companies, clients, documents, invoices, proposals, payments, and settings in this browser. This cannot be undone. Are you sure?',
+          confirmText: 'Yes, Purge and Reset',
+          isDanger: true
+        });
+
+        if (confirmed) {
+          await window.db.resetAllData();
+          await window.appState.refreshCompanies();
+          Utils.showToast('All application data has been purged. Clean slate initialized.', 'info');
+          window.app.navigateTo('dashboard');
         }
       };
     }

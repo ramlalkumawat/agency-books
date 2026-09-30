@@ -760,16 +760,15 @@ class App {
         const disc = parseFloat(item.discount) || 0;
         const taxRate = parseFloat(item.taxRate) || 0;
 
-        const baseTotal = qty * price;
-        const lineDiscount = Math.min(baseTotal, disc);
-        const taxable = Math.max(0, baseTotal - lineDiscount);
-        const tax = taxable * (taxRate / 100);
-        const lineTotal = taxable + tax;
+        const baseTotal = Math.round((qty * price) * 100) / 100;
+        const lineDiscount = Math.round(Math.min(baseTotal, disc) * 100) / 100;
+        const taxable = Math.max(0, Math.round((baseTotal - lineDiscount) * 100) / 100);
+        const tax = Math.round((taxable * (taxRate / 100)) * 100) / 100;
 
-        item.total = taxable; // line total without tax, or line total
-        subtotal += baseTotal;
-        totalDiscount += lineDiscount;
-        totalTax += tax;
+        item.total = taxable;
+        subtotal = Math.round((subtotal + baseTotal) * 100) / 100;
+        totalDiscount = Math.round((totalDiscount + lineDiscount) * 100) / 100;
+        totalTax = Math.round((totalTax + tax) * 100) / 100;
 
         const rowTotalEl = itemsTbody.querySelectorAll('.item-line-total')[idx];
         if (rowTotalEl) {
@@ -777,8 +776,8 @@ class App {
         }
       });
 
-      const taxableAmount = Math.max(0, subtotal - totalDiscount);
-      const grandTotal = taxableAmount + totalTax;
+      const taxableAmount = Math.max(0, Math.round((subtotal - totalDiscount) * 100) / 100);
+      const grandTotal = Math.round((taxableAmount + totalTax) * 100) / 100;
 
       modal.querySelector('#calc-subtotal').textContent = Utils.formatCurrency(subtotal, currency);
       modal.querySelector('#calc-discount').textContent = `-${Utils.formatCurrency(totalDiscount, currency)}`;
@@ -873,21 +872,21 @@ class App {
         const disc = parseFloat(item.discount) || 0;
         const taxRate = parseFloat(item.taxRate) || 0;
 
-        const baseTotal = qty * price;
-        const lineDiscount = Math.min(baseTotal, disc);
-        const taxable = Math.max(0, baseTotal - lineDiscount);
-        const tax = taxable * (taxRate / 100);
+        const baseTotal = Math.round((qty * price) * 100) / 100;
+        const lineDiscount = Math.round(Math.min(baseTotal, disc) * 100) / 100;
+        const taxable = Math.max(0, Math.round((baseTotal - lineDiscount) * 100) / 100);
+        const tax = Math.round((taxable * (taxRate / 100)) * 100) / 100;
 
-        subtotal += baseTotal;
-        totalDiscount += lineDiscount;
-        totalTax += tax;
+        subtotal = Math.round((subtotal + baseTotal) * 100) / 100;
+        totalDiscount = Math.round((totalDiscount + lineDiscount) * 100) / 100;
+        totalTax = Math.round((totalTax + tax) * 100) / 100;
       });
 
-      const taxableAmount = Math.max(0, subtotal - totalDiscount);
-      const grandTotal = taxableAmount + totalTax;
+      const taxableAmount = Math.max(0, Math.round((subtotal - totalDiscount) * 100) / 100);
+      const grandTotal = Math.round((taxableAmount + totalTax) * 100) / 100;
 
       const paidAmount = existingDoc?.paidAmount || 0;
-      const balanceDue = Math.max(0, grandTotal - paidAmount);
+      const balanceDue = Math.max(0, Math.round((grandTotal - paidAmount) * 100) / 100);
 
       const docObj = {
         ...(existingDoc || {}),

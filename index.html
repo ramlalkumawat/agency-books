@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>AgencyBooks - Multi-Company Quotation, Invoice & Proposal Management</title>
+  <meta name="description" content="Professional, responsive multi-company quotation, invoice, and proposal management software. Complete personal business suite with local storage, PDF export, and zero login requirement.">
+  <meta name="theme-color" content="#2563eb">
+
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%232563eb'><path d='M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z'/></svg>">
+
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <!-- Font Awesome 6.5.1 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+  <!-- Core App Stylesheets -->
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/document-preview.css">
+
+  <!-- jsPDF & html2canvas for High Fidelity PDF Generation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Collapsible Sidebar -->
+    <aside class="app-sidebar" id="app-sidebar">
+      <div class="sidebar-brand">
+        <a href="#dashboard" class="brand-link">
+          <div class="brand-icon">
+            <i class="fa-solid fa-file-invoice"></i>
+          </div>
+          <span>AgencyBooks</span>
+        </a>
+      </div>
+
+      <!-- Active Agency Pill -->
+      <div class="sidebar-company-card" id="sidebar-company-card" title="Click to switch active agency">
+        <!-- Rendered dynamically by App -->
+      </div>
+
+      <!-- Navigation Menu -->
+      <nav class="sidebar-nav">
+        <div class="nav-section-title">Core Modules</div>
+        <div class="nav-item active" data-view="dashboard">
+          <i class="fa-solid fa-gauge-high"></i>
+          <span>Dashboard</span>
+        </div>
+        <div class="nav-item" data-view="companies">
+          <i class="fa-solid fa-building"></i>
+          <span>Companies</span>
+        </div>
+        <div class="nav-item" data-view="clients">
+          <i class="fa-solid fa-users"></i>
+          <span>Clients</span>
+        </div>
+
+        <div class="nav-section-title">Billing & Documents</div>
+        <div class="nav-item" data-view="proposals">
+          <i class="fa-solid fa-lightbulb"></i>
+          <span>Proposals</span>
+        </div>
+        <div class="nav-item" data-view="quotations">
+          <i class="fa-solid fa-file-signature"></i>
+          <span>Quotations</span>
+        </div>
+        <div class="nav-item" data-view="invoices">
+          <i class="fa-solid fa-file-invoice-dollar"></i>
+          <span>Invoices</span>
+        </div>
+        <div class="nav-item" data-view="payments">
+          <i class="fa-solid fa-receipt"></i>
+          <span>Payments</span>
+        </div>
+        <div class="nav-item" data-view="documents">
+          <i class="fa-solid fa-folder-open"></i>
+          <span>All Documents</span>
+        </div>
+
+        <div class="nav-section-title">Analytics & Tools</div>
+        <div class="nav-item" data-view="reports">
+          <i class="fa-solid fa-chart-pie"></i>
+          <span>Reports</span>
+        </div>
+        <div class="nav-item" data-view="settings">
+          <i class="fa-solid fa-sliders"></i>
+          <span>Settings</span>
+        </div>
+        <div class="nav-item" data-view="backup">
+          <i class="fa-solid fa-shield-halved"></i>
+          <span>Backup & Restore</span>
+        </div>
+      </nav>
+
+      <!-- Sidebar Footer -->
+      <div class="sidebar-footer">
+        <div class="storage-status-pill" title="Local IndexedDB Engine active">
+          <span class="status-dot-green"></span>
+          <span>Offline Ready</span>
+        </div>
+        <button class="sidebar-toggle-btn" onclick="window.app.navigateTo('settings')" title="Preferences">
+          <i class="fa-solid fa-gear"></i>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="app-main">
+      <!-- Topbar Header -->
+      <header class="app-topbar">
+        <div class="topbar-left">
+          <!-- Mobile Menu Hamburger -->
+          <button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="Toggle navigation drawer">
+            <i class="fa-solid fa-bars"></i>
+          </button>
+
+          <!-- Topbar Company Switcher Dropdown -->
+          <div class="topbar-company-picker" id="topbar-company-picker" title="Switch Agency">
+            <!-- Dynamically populated -->
+          </div>
+
+          <!-- Global Search Trigger -->
+          <div class="global-search-trigger" id="global-search-trigger" title="Search everywhere (Ctrl+K)">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <span>Search documents, clients...</span>
+            <span class="search-shortcut-key">Ctrl K</span>
+          </div>
+        </div>
+
+        <div class="topbar-right">
+          <!-- Quick Action "+ New" Button Dropdown -->
+          <div style="position: relative;">
+            <button class="btn-new-action" id="btn-top-new">
+              <i class="fa-solid fa-plus"></i>
+              <span>Create</span>
+              <i class="fa-solid fa-chevron-down" style="font-size: 10px; margin-left: 2px;"></i>
+            </button>
+            <div id="top-new-dropdown" class="card" style="display: none; position: absolute; right: 0; top: 110%; width: 200px; z-index: 50; box-shadow: var(--shadow-xl); padding: 6px;">
+              <a href="javascript:void(0)" class="top-create-item" data-type="Invoice" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: var(--radius-sm); color: var(--text-main); font-weight: 500;">
+                <i class="fa-solid fa-file-invoice-dollar text-primary"></i> New Invoice
+              </a>
+              <a href="javascript:void(0)" class="top-create-item" data-type="Quotation" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: var(--radius-sm); color: var(--text-main); font-weight: 500;">
+                <i class="fa-solid fa-file-signature text-info"></i> New Quotation
+              </a>
+              <a href="javascript:void(0)" class="top-create-item" data-type="Proposal" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: var(--radius-sm); color: var(--text-main); font-weight: 500;">
+                <i class="fa-solid fa-lightbulb text-warning"></i> New Proposal
+              </a>
+              <div style="height: 1px; background: var(--border-color); margin: 4px 0;"></div>
+              <a href="javascript:void(0)" class="top-create-item" data-type="Client" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: var(--radius-sm); color: var(--text-main); font-weight: 500;">
+                <i class="fa-solid fa-user-plus text-success"></i> Add Client
+              </a>
+              <a href="javascript:void(0)" class="top-create-item" data-type="Payment" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: var(--radius-sm); color: var(--text-main); font-weight: 500;">
+                <i class="fa-solid fa-receipt text-orange"></i> Record Payment
+              </a>
+            </div>
+          </div>
+
+          <!-- Notification Bell with Overdue Alert Badge -->
+          <div style="position: relative;">
+            <button class="icon-btn" id="btn-notifications" title="Notifications & Overdue Reminders">
+              <i class="fa-regular fa-bell"></i>
+              <span class="icon-btn-badge" id="notification-badge" style="display: none;">0</span>
+            </button>
+            <div id="notifications-dropdown" class="card" style="display: none; position: absolute; right: 0; top: 110%; width: 320px; z-index: 50; box-shadow: var(--shadow-xl);">
+              <!-- Rendered dynamically -->
+            </div>
+          </div>
+
+          <!-- Settings Shortcut -->
+          <button class="icon-btn" onclick="window.app.navigateTo('settings')" title="Settings">
+            <i class="fa-solid fa-sliders"></i>
+          </button>
+        </div>
+      </header>
+
+      <!-- Main Dynamic Content Container -->
+      <div class="page-container" id="view-container">
+        <!-- Rendered dynamically by App -->
+      </div>
+    </main>
+  </div>
+
+  <!-- Application Logic Scripts in Dependency Order -->
+  <script src="js/db.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/state.js"></script>
+  <script src="js/pdf.js"></script>
+
+  <!-- Views -->
+  <script src="js/views/dashboard.js"></script>
+  <script src="js/views/companies.js"></script>
+  <script src="js/views/clients.js"></script>
+  <script src="js/views/proposals.js"></script>
+  <script src="js/views/quotations.js"></script>
+  <script src="js/views/invoices.js"></script>
+  <script src="js/views/payments.js"></script>
+  <script src="js/views/documents.js"></script>
+  <script src="js/views/reports.js"></script>
+  <script src="js/views/settings.js"></script>
+  <script src="js/views/backup.js"></script>
+
+  <!-- Main App Bootstrap -->
+  <script src="js/app.js"></script>
+</body>
+</html>
